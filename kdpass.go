@@ -29,10 +29,10 @@ func checkError(err error, msg string) {
 
 func readConf(url string) (config kdpassConf, err error) {
 	confFile, err := os.Open(url)
-	defer confFile.Close()
 	if err != nil {
 		return
 	}
+	defer confFile.Close()
 	decoder := json.NewDecoder(confFile)
 	err = decoder.Decode(&config)
 	return config, err
@@ -64,7 +64,7 @@ func main() {
 	checkError(err, "failed to read config file.")
 
 	conn, err := connectTLS(config)
-	checkError(err, "failed to connect to server")
+	checkError(err, "failed to connect server")
 
 	conn.Write([]byte(label))
 }
