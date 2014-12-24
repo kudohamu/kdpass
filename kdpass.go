@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -10,6 +9,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"strconv"
 )
 
 type server struct {
@@ -22,6 +22,10 @@ type server struct {
 type kdpassConf struct {
 	Server server
 }
+
+const (
+	SHOW = iota
+)
 
 func checkError(err error, msg string) {
 	if err != nil {
@@ -68,12 +72,18 @@ func showPasswd(conn *tls.Conn, label string) {
 	if len(label) == 0 {
 		fmt.Fprintf(os.Stderr, "Usage: kdpass show [label]\n")
 	} else {
+		conn.Write([]byte(strconv.Itoa(SHOW)))
 		passwd, err := getAuthorizedPasswd()
+		fmt.Println("")
 		checkError(err, "failed to read password.")
-		hash := sha256.New()
-		fmt.Println("\n" + passwd)
-		hash.Write([]byte(passwd))
-		conn.Write(hash.Sum(nil))
+		conn.Write([]byte(passwd))
+		isAuth := make([]byte, 128)
+		isAuthLen, err := conn.Read(isAuth)
+		if string(isAuth[:isAuthLen]) != "success" {
+			fmt.Fprintf(os.Stderr, "password is not correct.\n")
+			return
+		}
+		conn.Write([]byte(label))
 	}
 }
 
