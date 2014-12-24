@@ -52,18 +52,22 @@ func connectTLS(config kdpassConf) (conn *tls.Conn, err error) {
 	return
 }
 
+func getAuthorizedPasswd() (passwd string, err error) {
+	fmt.Printf("enter your password: ")
+	cmd := exec.Command("stty", "-echo")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+	cmd.Run()
+	_, err = fmt.Scanf("%s", &passwd)
+	return
+}
+
 func showPasswd(conn *tls.Conn, label string) {
 	if len(label) == 0 {
 		fmt.Fprintf(os.Stderr, "Usage: kdpass show [label]\n")
 	} else {
-		fmt.Printf("enter your password: ")
-		cmd := exec.Command("stty", "-echo")
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Stdin = os.Stdin
-		cmd.Run()
-		var passwd string
-		_, err := fmt.Scanf("%s", &passwd)
+		passwd, err := getAuthorizedPasswd()
 		checkError(err, "failed to read password.")
 		fmt.Println("\n" + passwd)
 		conn.Write([]byte("Hello"))
@@ -71,7 +75,6 @@ func showPasswd(conn *tls.Conn, label string) {
 }
 
 func main() {
-
 	config, err := readConf("kdpass.conf")
 	checkError(err, "failed to read config file.")
 
