@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -69,8 +70,10 @@ func showPasswd(conn *tls.Conn, label string) {
 	} else {
 		passwd, err := getAuthorizedPasswd()
 		checkError(err, "failed to read password.")
+		hash := sha256.New()
 		fmt.Println("\n" + passwd)
-		conn.Write([]byte("Hello"))
+		hash.Write([]byte(passwd))
+		conn.Write(hash.Sum(nil))
 	}
 }
 
