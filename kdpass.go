@@ -5,8 +5,10 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"github.com/codegangsta/cli"
 	"io/ioutil"
 	"os"
+	"os/exec"
 )
 
 type server struct {
@@ -50,21 +52,44 @@ func connectTLS(config kdpassConf) (conn *tls.Conn, err error) {
 	return
 }
 
-func main() {
-	label := ""
-	if len(os.Args) > 1 {
-		label = os.Args[1]
+func showPasswd(conn *tls.Conn, label string) {
+	if len(label) == 0 {
+		fmt.Fprintf(os.Stderr, "Usage: kdpass show [label]\n")
 	} else {
-		os.Exit(1)
+		fmt.Printf("enter your password: ")
+		cmd := exec.Command("stty", "-echo")
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Stdin = os.Stdin
+		cmd.Run()
+		var passwd string
+		_, err := fmt.Scanf("%s", &passwd)
+		checkError(err, "failed to read password.")
+		fmt.Println("\n" + passwd)
+		conn.Write([]byte("Hello"))
 	}
+}
 
-	fmt.Println(label)
+func main() {
 
 	config, err := readConf("kdpass.conf")
 	checkError(err, "failed to read config file.")
 
 	conn, err := connectTLS(config)
-	checkError(err, "failed to connect server")
+	checkError(err, "failed to connect server.")
 
-	conn.Write([]byte(label))
+	app := cli.NewApp()
+	app.Name = "kdpass"
+
+	app.Commands = []cli.Command{
+		{
+			Name:  "show",
+			Usage: "show specified label's password",
+			Action: func(c *cli.Context) {
+				showPasswd(conn, c.Args().First())
+			},
+		},
+	}
+
+	app.Run(os.Args)
 }
