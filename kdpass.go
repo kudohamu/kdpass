@@ -25,6 +25,7 @@ type kdpassConf struct {
 
 const (
 	SHOW = iota
+	ADD
 )
 
 func checkError(err error, msg string) {
@@ -57,7 +58,7 @@ func connectTLS(config kdpassConf) (conn *tls.Conn, err error) {
 	return
 }
 
-func getAuthorizedPasswd() (passwd string, err error) {
+func askAuthPass() (passwd string, err error) {
 	fmt.Printf("enter your password: ")
 	cmd := exec.Command("stty", "-echo")
 	cmd.Stdout = os.Stdout
@@ -68,23 +69,104 @@ func getAuthorizedPasswd() (passwd string, err error) {
 	return
 }
 
+func checkAuthPass(conn *tls.Conn) bool {
+	authPass, err := askAuthPass()
+	fmt.Println()
+	if err != nil {
+		return false
+	}
+	conn.Write([]byte(authPass))
+	isAuth := make([]byte, 127)
+	isAuthLen, err := conn.Read(isAuth)
+	if string(isAuth[:isAuthLen]) != "success" {
+		return true
+	} else {
+		return false
+	}
+}
+
 func showPasswd(conn *tls.Conn, label string) {
 	if len(label) == 0 {
 		fmt.Fprintf(os.Stderr, "Usage: kdpass show [label]\n")
-	} else {
-		conn.Write([]byte(strconv.Itoa(SHOW)))
-		passwd, err := getAuthorizedPasswd()
-		fmt.Println("")
-		checkError(err, "failed to read password.")
-		conn.Write([]byte(passwd))
-		isAuth := make([]byte, 128)
-		isAuthLen, err := conn.Read(isAuth)
-		if string(isAuth[:isAuthLen]) != "success" {
-			fmt.Fprintf(os.Stderr, "password is not correct.\n")
-			return
-		}
-		conn.Write([]byte(label))
+		return
 	}
+	conn.Write([]byte(strconv.Itoa(SHOW)))
+
+	if checkAuthPass(conn) {
+		fmt.Fprintf(os.Stderr, "password is not correct.\n")
+		return
+	}
+
+	conn.Write([]byte(label))
+
+	passwd := make([]byte, 255)
+	passLen, err := conn.Read(passwd)
+	checkError(err, "failed to read password.")
+
+	remark := make([]byte, 1023)
+	remarkLen, err := conn.Read(remark)
+	checkError(err, "failed to read remark.")
+
+	fmt.Printf("label: %s\n", label)
+	fmt.Printf("password: %s\n", string(passwd[:passLen]))
+	fmt.Printf("remark: %s\n", string(remark[:remarkLen]))
+}
+
+func addPasswd(conn *tls.Conn) {
+	conn.Write([]byte(strconv.Itoa(ADD)))
+
+	if checkAuthPass(conn) {
+		fmt.Fprintf(os.Stderr, "password is not correct.\n")
+		return
+	}
+
+	fmt.Printf("enter new password's label: ")
+	var label string
+	cmd := exec.Command("stty", "echo")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+	cmd.Run()
+	_, err := fmt.Scanf("%s", &label)
+	checkError(err, "failed to read label.")
+
+	fmt.Printf("enter new password: ")
+	cmd = exec.Command("stty", "-echo")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+	cmd.Run()
+	var passwd string
+	_, err = fmt.Scanf("%s", &passwd)
+	fmt.Println("")
+	checkError(err, "failed to read password.")
+
+	fmt.Printf("retype new password: ")
+	cmd.Run()
+	var verify_passwd string
+	_, err = fmt.Scanf("%s", &verify_passwd)
+	fmt.Println("")
+	checkError(err, "failed to read verify password.")
+
+	if passwd != verify_passwd {
+		fmt.Println("retyped password is not correct.")
+		return
+	}
+
+	fmt.Printf("enter remarks(if any): ")
+	cmd = exec.Command("stty", "echo")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+	cmd.Run()
+	var remark string
+	_, err = fmt.Scanf("%s", &remark)
+	fmt.Println("")
+	checkError(err, "failed to read remark.")
+
+	conn.Write([]byte(label))
+	conn.Write([]byte(passwd))
+	conn.Write([]byte(remark))
 }
 
 func main() {
@@ -103,6 +185,13 @@ func main() {
 			Usage: "show specified label's password",
 			Action: func(c *cli.Context) {
 				showPasswd(conn, c.Args().First())
+			},
+		},
+		{
+			Name:  "add",
+			Usage: "add new password",
+			Action: func(c *cli.Context) {
+				addPasswd(conn)
 			},
 		},
 	}
