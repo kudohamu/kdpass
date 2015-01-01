@@ -25,6 +25,7 @@ type kdpassConf struct {
 const (
 	SHOW = iota
 	ADD
+	LIST
 )
 
 func checkError(err error, msg string) {
@@ -103,6 +104,13 @@ func main() {
 			Usage: "add new password",
 			Action: func(c *cli.Context) {
 				add(conn)
+			},
+		},
+		{
+			Name:  "list",
+			Usage: "show all labels",
+			Action: func(c *cli.Context) {
+				list(conn)
 			},
 		},
 	}
