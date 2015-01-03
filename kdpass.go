@@ -59,7 +59,7 @@ func connectTLS(config kdpassConf) (conn *tls.Conn, err error) {
 }
 
 func checkAuthPass(conn *tls.Conn) bool {
-	fmt.Printf("enter your password: ")
+	fmt.Printf("enter auth password: ")
 	cmd := exec.Command("stty", "-echo")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
