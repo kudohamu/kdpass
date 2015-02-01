@@ -82,7 +82,7 @@ func checkAuthPass(conn *tls.Conn) bool {
 }
 
 func main() {
-	config, err := readConf("kdpass.conf")
+	config, err := readConf("kdpass.json")
 	checkError(err, "failed to read config file.")
 
 	conn, err := connectTLS(config)
