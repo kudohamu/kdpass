@@ -18,11 +18,13 @@ func list(conn *tls.Conn) {
 		return
 	}
 
-	var list bytes.Buffer
-	io.Copy(&list, conn)
+	if checkMFA(conn) {
+		var list bytes.Buffer
+		io.Copy(&list, conn)
 
-	labels := strings.Split(string(list.Bytes()), "\n")
-	for _, label := range labels {
-		fmt.Println(label)
+		labels := strings.Split(string(list.Bytes()), "\n")
+		for _, label := range labels {
+			fmt.Println(label)
+		}
 	}
 }
